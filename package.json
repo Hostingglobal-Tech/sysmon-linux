@@ -1,0 +1,43 @@
+{
+  "name": "sysmon-linux",
+  "version": "1.0.0",
+  "description": "A real-time Linux system monitoring tool with high CPU process detection",
+  "main": "sysmon.py",
+  "bin": {
+    "sysmon": "./sysmon.py"
+  },
+  "scripts": {
+    "start": "python3 sysmon.py",
+    "test": "python3 -m unittest test_sysmon.py"
+  },
+  "keywords": [
+    "linux",
+    "monitoring",
+    "system",
+    "cpu",
+    "memory",
+    "processes",
+    "cli",
+    "python"
+  ],
+  "author": "System Monitor CLI Tool",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nmsglobal/sysmon-linux.git"
+  },
+  "bugs": {
+    "url": "https://github.com/nmsglobal/sysmon-linux/issues"
+  },
+  "homepage": "https://github.com/nmsglobal/sysmon-linux#readme",
+  "engines": {
+    "node": ">=12.0.0"
+  },
+  "os": ["linux"],
+  "files": [
+    "sysmon.py",
+    "README.md",
+    "LICENSE"
+  ],
+  "preferGlobal": true
+}
