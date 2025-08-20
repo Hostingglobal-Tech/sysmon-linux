@@ -1,0 +1,13 @@
+# Core requirements
+# No external dependencies required - uses only Python standard library
+
+# Optional dependencies for enhanced features
+# Uncomment if needed:
+
+# psutil>=5.9.0        # For more detailed system information
+# colorama>=0.4.6      # For Windows terminal color support
+# rich>=13.0.0         # For advanced terminal UI
+
+# Development dependencies
+# pytest>=7.0.0        # For running tests
+# pyinstaller>=5.0     # For creating standalone executables

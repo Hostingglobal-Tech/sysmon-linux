@@ -1,0 +1,326 @@
+#!/usr/bin/env python3
+"""
+Linux System Monitor - Real-time system statistics
+Monitor uptime, processes, and memory usage
+"""
+
+import os
+import sys
+import time
+import signal
+import argparse
+from datetime import datetime, timedelta
+
+
+class SystemMonitor:
+    """Main system monitoring class"""
+    
+    def __init__(self, interval=60, use_color=True):
+        """Initialize the system monitor
+        
+        Args:
+            interval (int): Update interval in seconds
+            use_color (bool): Whether to use colored output
+        """
+        self.interval = interval
+        self.use_color = use_color
+        self.running = True
+        
+    def get_uptime(self):
+        """Get system uptime and load average
+        
+        Returns:
+            dict: Dictionary with uptime and load average
+        """
+        try:
+            # Get uptime
+            with open('/proc/uptime', 'r') as f:
+                uptime_seconds = float(f.readline().split()[0])
+            
+            days = int(uptime_seconds // 86400)
+            hours = int((uptime_seconds % 86400) // 3600)
+            minutes = int((uptime_seconds % 3600) // 60)
+            
+            if days > 0:
+                uptime_str = f"{days}d {hours}h {minutes}m"
+            elif hours > 0:
+                uptime_str = f"{hours}h {minutes}m"
+            else:
+                uptime_str = f"{minutes}m"
+            
+            # Get load average
+            with open('/proc/loadavg', 'r') as f:
+                loadavg_line = f.readline().strip()
+                loads = loadavg_line.split()[:3]  # 1min, 5min, 15min averages
+                load_avg = f"{loads[0]}, {loads[1]}, {loads[2]}"
+            
+            return {
+                'uptime': uptime_str,
+                'load_avg': load_avg
+            }
+        except Exception as e:
+            return {
+                'uptime': "N/A",
+                'load_avg': "N/A"
+            }
+    
+    def get_cpu_usage(self):
+        """Get CPU usage percentage
+        
+        Returns:
+            dict: Dictionary with CPU usage stats
+        """
+        try:
+            # First reading
+            with open('/proc/stat', 'r') as f:
+                line = f.readline()
+                cpu_data1 = list(map(int, line.split()[1:]))
+            
+            # Wait a bit for difference
+            time.sleep(0.1)
+            
+            # Second reading
+            with open('/proc/stat', 'r') as f:
+                line = f.readline()
+                cpu_data2 = list(map(int, line.split()[1:]))
+            
+            # Calculate differences
+            idle1 = cpu_data1[3] + cpu_data1[4]  # idle + iowait
+            idle2 = cpu_data2[3] + cpu_data2[4]
+            
+            non_idle1 = sum(cpu_data1) - idle1
+            non_idle2 = sum(cpu_data2) - idle2
+            
+            total = (non_idle2 + idle2) - (non_idle1 + idle1)
+            if total == 0:
+                return {'percent': 0.0, 'cores': os.cpu_count()}
+            
+            idle = idle2 - idle1
+            usage = ((total - idle) / total) * 100
+            
+            return {
+                'percent': round(usage, 1),
+                'cores': os.cpu_count()
+            }
+        except Exception:
+            return {'percent': 0.0, 'cores': os.cpu_count() or 1}
+    
+    def get_process_info(self):
+        """Get process information from /proc and ps
+        
+        Returns:
+            dict: Dictionary with total processes and high CPU (>=90%) process counts
+        """
+        try:
+            # Count all process directories in /proc
+            proc_dirs = [d for d in os.listdir('/proc') if d.isdigit()]
+            total_processes = len(proc_dirs)
+            
+            # Use ps to get current CPU usage for all processes
+            import subprocess
+            result = subprocess.run(['ps', 'aux'], capture_output=True, text=True, timeout=2)
+            
+            high_cpu_count = 0
+            if result.returncode == 0:
+                lines = result.stdout.strip().split('\n')
+                # Skip header line
+                for line in lines[1:]:
+                    fields = line.split()
+                    if len(fields) >= 3:
+                        try:
+                            cpu_percent = float(fields[2])  # Third column is %CPU
+                            if cpu_percent >= 90.0:
+                                high_cpu_count += 1
+                        except ValueError:
+                            pass
+                    
+            return {
+                'total': total_processes,
+                'running': high_cpu_count  # Shows processes with >= 90% CPU
+            }
+        except Exception:
+            return {'total': 0, 'running': 0}
+    
+    def get_memory_info(self):
+        """Get memory information from /proc/meminfo
+        
+        Returns:
+            dict: Dictionary with memory statistics
+        """
+        try:
+            with open('/proc/meminfo', 'r') as f:
+                lines = f.readlines()
+            
+            mem_info = {}
+            for line in lines:
+                parts = line.split(':')
+                if len(parts) == 2:
+                    key = parts[0].strip()
+                    value_parts = parts[1].strip().split()
+                    if value_parts:
+                        mem_info[key] = int(value_parts[0])
+            
+            total = mem_info.get('MemTotal', 0)
+            free = mem_info.get('MemFree', 0)
+            available = mem_info.get('MemAvailable', 0)
+            buffers = mem_info.get('Buffers', 0)
+            cached = mem_info.get('Cached', 0)
+            
+            # Calculate used memory
+            if available > 0:
+                used = total - available
+            else:
+                used = total - free - buffers - cached
+            
+            percent = (used / total * 100) if total > 0 else 0
+            
+            return {
+                'total_mb': total // 1024,
+                'used_mb': used // 1024,
+                'free_mb': free // 1024,
+                'percent': round(percent, 1)
+            }
+        except Exception:
+            return {'total_mb': 0, 'used_mb': 0, 'free_mb': 0, 'percent': 0}
+    
+    def format_display(self, data):
+        """Format and display system information
+        
+        Args:
+            data (dict): Dictionary containing system information
+        """
+        # Clear screen
+        os.system('clear')
+        
+        # Color codes
+        if self.use_color:
+            GREEN = '\033[92m'
+            YELLOW = '\033[93m'
+            BLUE = '\033[94m'
+            RED = '\033[91m'
+            RESET = '\033[0m'
+            BOLD = '\033[1m'
+        else:
+            GREEN = YELLOW = BLUE = RED = RESET = BOLD = ''
+        
+        # Header
+        print(f"{BOLD}{'='*50}{RESET}")
+        print(f"{BOLD}    LINUX SYSTEM MONITOR{RESET}")
+        print(f"{BOLD}{'='*50}{RESET}")
+        print(f"Last Update: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        print(f"{'-'*50}")
+        
+        # Uptime and Load Average
+        uptime_info = data['uptime']
+        print(f"{GREEN}⏱  Uptime:{RESET} {uptime_info['uptime']}")
+        print(f"{BLUE}📈 Load Average:{RESET} {uptime_info['load_avg']}")
+        
+        # CPU Usage
+        cpu = data['cpu']
+        if cpu['percent'] > 80:
+            cpu_color = RED
+        elif cpu['percent'] > 50:
+            cpu_color = YELLOW
+        else:
+            cpu_color = GREEN
+        print(f"{cpu_color}💻 CPU:{RESET} {cpu['percent']}% ({cpu['cores']} cores)")
+        
+        # Processes
+        proc = data['processes']
+        print(f"{BLUE}📊 Processes:{RESET} {proc['total']} total, {proc['running']} high CPU (≥90%)")
+            try:
+                # Collect data
+                data = {
+                    'uptime': self.get_uptime(),
+                    'cpu': self.get_cpu_usage(),
+                    'processes': self.get_process_info(),
+                    'memory': self.get_memory_info()
+                }
+                
+                # Display data
+                self.format_display(data)
+                
+                # Wait for next update
+                time.sleep(self.interval)
+                
+            except KeyboardInterrupt:
+                self.stop()
+                break
+            except Exception as e:
+                print(f"Error: {e}")
+                time.sleep(5)
+
+
+def parse_arguments():
+    """Parse command line arguments
+    
+    Returns:
+        argparse.Namespace: Parsed arguments
+    """
+    parser = argparse.ArgumentParser(
+        description='Linux System Monitor - Real-time system statistics',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  sysmon                    # Default: 60s interval
+  sysmon -i 30             # 30 seconds interval
+  sysmon -i 5 -n           # 5 seconds, no color
+  sysmon --once            # Show once and exit
+        """
+    )
+    
+    parser.add_argument('-i', '--interval', 
+                       type=int, 
+                       default=60,
+                       help='Update interval in seconds (default: 60)')
+    
+    parser.add_argument('-n', '--no-color',
+                       action='store_true',
+                       help='Disable colored output')
+    
+    parser.add_argument('--once',
+                       action='store_true',
+                       help='Display once and exit')
+    
+    parser.add_argument('-v', '--version',
+                       action='version',
+                       version='%(prog)s 1.0.0')
+    
+    return parser.parse_args()
+
+
+def main():
+    """Main entry point"""
+    args = parse_arguments()
+    
+    # Validate interval
+    if args.interval < 1:
+        print("Error: Interval must be at least 1 second")
+        sys.exit(1)
+    
+    # Create monitor instance
+    monitor = SystemMonitor(
+        interval=args.interval,
+        use_color=not args.no_color
+    )
+    
+    if args.once:
+        # Single display mode
+        data = {
+            'uptime': monitor.get_uptime(),
+            'cpu': monitor.get_cpu_usage(),
+            'processes': monitor.get_process_info(),
+            'memory': monitor.get_memory_info()
+        }
+        monitor.format_display(data)
+    else:
+        # Continuous monitoring mode
+        print("Starting System Monitor...")
+        print(f"Update interval: {args.interval} seconds")
+        print("Press Ctrl+C to stop\n")
+        time.sleep(2)
+        monitor.run()
+
+
+if __name__ == "__main__":
+    main()
