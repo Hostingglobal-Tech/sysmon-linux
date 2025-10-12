@@ -19,10 +19,10 @@ The `~/.bashrc` file has been updated to explicitly use Python 3.14t:
 ```bash
 # sysmon - Linux System Monitor (Python 3.14 Free-Threading Support)
 # Using Python 3.14t for GIL-free parallel execution
-alias sysmon='~/.pyenv/versions/3.14.0t/bin/python3 /home/nmsglobal/DEVEL/CHATGPT5_PLAN/sysmon/sysmon.py'
-alias sysmon-once='~/.pyenv/versions/3.14.0t/bin/python3 /home/nmsglobal/DEVEL/CHATGPT5_PLAN/sysmon/sysmon.py --once'
-alias sysmon-fast='~/.pyenv/versions/3.14.0t/bin/python3 /home/nmsglobal/DEVEL/CHATGPT5_PLAN/sysmon/sysmon.py -i 5'
-alias sysmon-no-thread='~/.pyenv/versions/3.14.0t/bin/python3 /home/nmsglobal/DEVEL/CHATGPT5_PLAN/sysmon/sysmon.py --no-threading'
+alias sysmon='~/.pyenv/versions/3.14.0t/bin/python3 /home/sysmon/sysmon.py'
+alias sysmon-once='~/.pyenv/versions/3.14.0t/bin/python3 /home/sysmon/sysmon.py --once'
+alias sysmon-fast='~/.pyenv/versions/3.14.0t/bin/python3 /home/sysmon/sysmon.py -i 5'
+alias sysmon-no-thread='~/.pyenv/versions/3.14.0t/bin/python3 /home/sysmon/sysmon.py --no-threading'
 ```
 
 ## Performance Comparison
