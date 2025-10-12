@@ -10,23 +10,30 @@ import time
 import signal
 import argparse
 import subprocess
+import sysconfig
 from datetime import datetime, timedelta
+from concurrent.futures import ThreadPoolExecutor
 
 
 class SystemMonitor:
     """Main system monitor class that collects and displays system stats"""
     
-    def __init__(self, interval=60, use_color=True):
+    def __init__(self, interval=60, use_color=True, use_threading=True):
         """Initialize the system monitor
-        
+
         Args:
             interval: Update interval in seconds
             use_color: Whether to use colored output
+            use_threading: Whether to use multi-threading for data collection
         """
         self.interval = interval
         self.use_color = use_color
+        self.use_threading = use_threading
         self.running = True
-        
+
+        # Check GIL status for Python 3.14+
+        self.gil_disabled = sysconfig.get_config_var("Py_GIL_DISABLED") == 1
+
         # Color codes
         if use_color:
             self.RED = '\033[91m'
@@ -267,12 +274,20 @@ class SystemMonitor:
         print(f"{self.BOLD}    LINUX SYSTEM MONITOR{self.RESET}")
         print(f"{self.BOLD}{'='*50}{self.RESET}")
         print(f"Last Update: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+
+        # Threading and GIL status
+        threading_status = f"{self.GREEN}Enabled{self.RESET}" if self.use_threading else f"{self.YELLOW}Disabled{self.RESET}"
+        if self.gil_disabled:
+            gil_status = f"{self.GREEN}Free-threading (GIL Disabled){self.RESET}"
+        else:
+            gil_status = f"{self.BLUE}Standard (GIL Enabled){self.RESET}"
+        print(f"Threading: {threading_status} | Python Mode: {gil_status}")
         print(f"{'-'*50}")
         
         # Uptime and Load Average
         uptime_info = data['uptime']
-        print(f"{self.GREEN}⏱  Uptime:{self.RESET} {uptime_info['uptime']}")
-        print(f"{self.BLUE}📈 Load Average:{self.RESET} {uptime_info['load_avg']}")
+        print(f"{self.GREEN}Uptime:{self.RESET} {uptime_info['uptime']}")
+        print(f"{self.BLUE}Load Average:{self.RESET} {uptime_info['load_avg']}")
         
         # CPU Usage
         cpu = data['cpu']
@@ -282,11 +297,11 @@ class SystemMonitor:
             cpu_color = self.YELLOW
         else:
             cpu_color = self.GREEN
-        print(f"{cpu_color}💻 CPU:{self.RESET} {cpu['percent']}% ({cpu['cores']} cores)")
+        print(f"{cpu_color}CPU:{self.RESET} {cpu['percent']}% ({cpu['cores']} cores)")
         
         # Processes
         proc = data['processes']
-        print(f"{self.BLUE}📊 Processes:{self.RESET} {proc['total']} total, {proc['running']} high CPU (≥90%)")
+        print(f"{self.BLUE}Processes:{self.RESET} {proc['total']} total, {proc['running']} high CPU (>=90%)")
         
         # Show high CPU processes if any
         if proc['running'] > 0 and proc.get('high_cpu_list'):
@@ -301,7 +316,7 @@ class SystemMonitor:
             mem_color = self.YELLOW
         else:
             mem_color = self.GREEN
-        print(f"{mem_color}💾 Memory:{self.RESET} {mem['used_mb']}MB / {mem['total_mb']}MB ({mem['percent']}%)")
+        print(f"{mem_color}Memory:{self.RESET} {mem['used_mb']}MB / {mem['total_mb']}MB ({mem['percent']}%)")
         
         # Footer
         print(f"{'-'*50}")
@@ -322,27 +337,56 @@ class SystemMonitor:
         print("\n\nSystem Monitor stopped.")
         sys.exit(0)
     
+    def collect_data_parallel(self):
+        """Collect system data using parallel threads (Python 3.14 free-threading optimized)
+
+        Returns:
+            dict: Dictionary containing all system statistics
+        """
+        if self.use_threading:
+            # Use ThreadPoolExecutor for parallel data collection
+            # Python 3.14 free-threading: true parallel execution without GIL
+            with ThreadPoolExecutor(max_workers=4) as executor:
+                # Submit all data collection tasks
+                future_uptime = executor.submit(self.get_uptime)
+                future_cpu = executor.submit(self.get_cpu_usage)
+                future_processes = executor.submit(self.get_process_info)
+                future_memory = executor.submit(self.get_memory_info)
+
+                # Gather results
+                data = {
+                    'uptime': future_uptime.result(),
+                    'cpu': future_cpu.result(),
+                    'processes': future_processes.result(),
+                    'memory': future_memory.result()
+                }
+        else:
+            # Sequential data collection (original behavior)
+            data = {
+                'uptime': self.get_uptime(),
+                'cpu': self.get_cpu_usage(),
+                'processes': self.get_process_info(),
+                'memory': self.get_memory_info()
+            }
+
+        return data
+
     def run(self):
         """Main monitoring loop"""
         # Register signal handler
         signal.signal(signal.SIGINT, self.signal_handler)
-        
+
         while self.running:
             try:
-                # Collect data
-                data = {
-                    'uptime': self.get_uptime(),
-                    'cpu': self.get_cpu_usage(),
-                    'processes': self.get_process_info(),
-                    'memory': self.get_memory_info()
-                }
-                
+                # Collect data (parallel or sequential)
+                data = self.collect_data_parallel()
+
                 # Display data
                 self.format_display(data)
-                
+
                 # Wait for next update
                 time.sleep(self.interval)
-                
+
             except KeyboardInterrupt:
                 self.stop()
                 break
@@ -377,37 +421,43 @@ Examples:
     parser.add_argument('-n', '--no-color',
                        action='store_true',
                        help='Disable colored output')
-    
+
+    parser.add_argument('--no-threading',
+                       action='store_true',
+                       help='Disable multi-threading for data collection')
+
     parser.add_argument('--once',
                        action='store_true',
                        help='Show statistics once and exit')
-    
+
     return parser.parse_args()
 
 
 def main():
     """Main entry point"""
     args = parse_arguments()
-    
+
     # Create monitor instance
     monitor = SystemMonitor(
         interval=args.interval,
-        use_color=not args.no_color
+        use_color=not args.no_color,
+        use_threading=not args.no_threading
     )
-    
+
     if args.once:
-        # Single display mode
-        data = {
-            'uptime': monitor.get_uptime(),
-            'cpu': monitor.get_cpu_usage(),
-            'processes': monitor.get_process_info(),
-            'memory': monitor.get_memory_info()
-        }
+        # Single display mode with parallel data collection
+        data = monitor.collect_data_parallel()
         monitor.format_display(data)
     else:
         # Continuous monitoring mode
         print("Starting System Monitor...")
         print(f"Update interval: {args.interval} seconds")
+        threading_mode = "parallel" if monitor.use_threading else "sequential"
+        print(f"Data collection: {threading_mode}")
+        if monitor.gil_disabled:
+            print("Python mode: Free-threading (GIL disabled) - True parallel execution!")
+        else:
+            print("Python mode: Standard (GIL enabled)")
         print("Press Ctrl+C to stop\n")
         time.sleep(2)
         monitor.run()
