@@ -34,7 +34,7 @@ A real-time Linux system monitoring tool that displays CPU, memory, processes, a
 
 1. Clone or download the script:
 ```bash
-cd /home/nmsglobal/DEVEL/CHATGPT5_PLAN/sysmon
+cd /path/to/sysmon
 chmod +x sysmon.py
 ```
 

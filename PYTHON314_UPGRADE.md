@@ -105,7 +105,7 @@ python sysmon.py --once
 ## Code Architecture
 
 ### Threading Pattern (from python314_multi_test)
-Based on the reference implementation in `/home/nmsglobal/DEVEL/python314_multi_test`:
+Based on the Python 3.14 free-threading reference implementation:
 - Uses `ThreadPoolExecutor` with 4 workers
 - Submits tasks independently
 - Gathers results with `.result()`

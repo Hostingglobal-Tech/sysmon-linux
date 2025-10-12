@@ -9,10 +9,10 @@ The `~/.bashrc` file has been updated with convenient aliases and functions for 
 
 | Alias | Description | Command |
 |-------|-------------|---------|
-| `sysmon` | Default monitoring (60s interval) | `python3 sysmon.py` |
-| `sysmon-once` | Show stats once and exit | `python3 sysmon.py --once` |
-| `sysmon-fast` | Fast monitoring (5s interval) | `python3 sysmon.py -i 5` |
-| `sysmon-no-thread` | Sequential mode (no threading) | `python3 sysmon.py --no-threading` |
+| `sysmon` | Default monitoring (60s interval) | `python3 /path/to/sysmon.py` |
+| `sysmon-once` | Show stats once and exit | `python3 /path/to/sysmon.py --once` |
+| `sysmon-fast` | Fast monitoring (5s interval) | `python3 /path/to/sysmon.py -i 5` |
+| `sysmon-no-thread` | Sequential mode (no threading) | `python3 /path/to/sysmon.py --no-threading` |
 
 ### 2. Helper Function
 
@@ -72,11 +72,11 @@ Lines **204-241** in `~/.bashrc`
 
 ```bash
 # sysmon - Linux System Monitor (Python 3.14 Free-Threading Support)
-alias sysmon='python3 /home/nmsglobal/DEVEL/CHATGPT5_PLAN/sysmon/sysmon.py'
-alias sysmon-once='python3 /home/nmsglobal/DEVEL/CHATGPT5_PLAN/sysmon/sysmon.py --once'
-alias sysmon-fast='python3 /home/nmsglobal/DEVEL/CHATGPT5_PLAN/sysmon/sysmon.py -i 5'
-alias sysmon-no-thread='python3 /home/nmsglobal/DEVEL/CHATGPT5_PLAN/sysmon/sysmon.py --no-threading'
-export PATH="$PATH:/home/nmsglobal/DEVEL/CHATGPT5_PLAN/sysmon"
+alias sysmon='python3 /path/to/sysmon/sysmon.py'
+alias sysmon-once='python3 /path/to/sysmon/sysmon.py --once'
+alias sysmon-fast='python3 /path/to/sysmon/sysmon.py -i 5'
+alias sysmon-no-thread='python3 /path/to/sysmon/sysmon.py --no-threading'
+export PATH="$PATH:/path/to/sysmon"
 
 # sysmon helper function
 sysmon-help() {
@@ -122,13 +122,13 @@ source ~/.bashrc
 ### Function not found
 Functions are only available in interactive shells. If using scripts, call the command directly:
 ```bash
-python3 /home/nmsglobal/DEVEL/CHATGPT5_PLAN/sysmon/sysmon.py --once
+python3 /path/to/sysmon/sysmon.py --once
 ```
 
 ### Permission denied
 ```bash
 # Ensure script is executable
-chmod +x /home/nmsglobal/DEVEL/CHATGPT5_PLAN/sysmon/sysmon.py
+chmod +x /path/to/sysmon/sysmon.py
 ```
 
 ## Uninstallation
@@ -143,7 +143,7 @@ To remove sysmon aliases:
 
 - **Main Documentation**: `README.md`
 - **Python 3.14 Upgrade**: `PYTHON314_UPGRADE.md`
-- **Project Directory**: `/home/nmsglobal/DEVEL/CHATGPT5_PLAN/sysmon`
+- **Installation Guide**: See `README.md` for installation instructions
 
 ## Version
 
